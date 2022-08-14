@@ -7,10 +7,12 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
+import org.springframework.batch.core.configuration.annotation.JobScope;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
@@ -29,31 +31,30 @@ public class JobParametersConfig {
     public Job paramJob() {
         return jobBuilderFactory.get("paramJob")
                 .incrementer(new RunIdIncrementer())
-                .start(startStep())
+                .start(startStep(null))
                 .build();
     }
 
     @Bean
-    public Step startStep() {
+    @JobScope
+    public Step startStep(@Value("#{jobParameters[chunkSize]}") String chunkSize) {
 
         return stepBuilderFactory.get("startStep")
-                .tasklet(paramTasklet())
+                .tasklet(paramTasklet(chunkSize))
                 .build();
     }
 
-    private Tasklet paramTasklet() {
+    private Tasklet paramTasklet(String chunkSize) {
 
         List<String> items = getItems();
 
         return (contribution, chunkContext) -> {
             StepExecution stepExecution = contribution.getStepExecution();
-            JobParameters jobParameters = stepExecution.getJobParameters();
 
             //jobParameters에서 ""key 값이 없으면 10
-            String value = jobParameters.getString("chunkSize", "10");
-            int chunkSize = !StringUtils.isEmpty(value) ? Integer.parseInt(value) : 10;
+            int unit = !StringUtils.isEmpty(chunkSize) ? Integer.parseInt(chunkSize) : 10;
             int startIdx = stepExecution.getReadCount();
-            int endIdx = startIdx + chunkSize;
+            int endIdx = startIdx + unit;
 
             if (startIdx >= items.size()) {
                 return RepeatStatus.FINISHED;
