@@ -48,6 +48,7 @@ public class ChunkProcessingConfig {
 
     private ItemWriter<String> itemWriter() {
         return items -> log.info("chunk item size: {}",items.size());
+       // return items-> items.forEach(item->log.info(item));
     }
 
     private ItemProcessor<String, String> itemProcessor() {
